@@ -65,10 +65,16 @@ button {
     cursor: pointer;
     font-weight: bold;
     margin-top: 6px;
+    transition: 0.3s;
 }
 
 button:hover {
     background: orange;
+}
+
+button.success {
+    background: #28a745 !important;
+    color: white !important;
 }
 
 .options {
@@ -101,15 +107,14 @@ button:hover {
 
 <div class="main">
 
-<!-- CỘT TRÁI -->
 <div class="column">
 <textarea id="inputText" placeholder="Nhập nội dung..." oninput="convertText()"></textarea>
-<button onclick="pasteText()">📋 Paste</button>
+<button id="pasteBtn" onclick="pasteText()">📋 Paste</button>
 
 <div class="options">
 <label>
 <input type="checkbox" id="replaceSpace" checked>
-Thay 
+Thay
 </label>
 <input type="text" id="charA1" value="space">
 thành
@@ -124,10 +129,9 @@ thành
 </div>
 </div>
 
-<!-- CỘT PHẢI -->
 <div class="column">
 <textarea id="outputText" placeholder="Kết quả..." onclick="this.select()"></textarea>
-<button onclick="copyText()">Copy</button>
+<button id="copyBtn" onclick="copyText()">Copy</button>
 
 <div class="options">
 <strong>Giới hạn:</strong><br>
@@ -176,96 +180,69 @@ function convertText() {
     if (caseOption === "upper") text = text.toUpperCase();
 
     text = text.replace(/[^a-zA-Z\s]/g, "");
-
     let words = text.trim().split(/\s+/);
 
-    // GIỚI HẠN
     let customToggle = document.getElementById("customToggle").checked;
     let customLimit = document.getElementById("customLimit").value;
-    let limitOption = document.querySelector('input[name="limitOption"]:checked').value;
+    let limitOption = document.querySelector('input[name="limitOption"]:checked');
 
     if (customToggle && customLimit) {
         words = words.slice(0, parseInt(customLimit));
-    } else if (!customToggle && limitOption !== "all") {
-        words = words.slice(0, parseInt(limitOption));
+    } else if (!customToggle && limitOption && limitOption.value !== "all") {
+        words = words.slice(0, parseInt(limitOption.value));
     }
 
     let result;
 
     if (document.getElementById("replaceSpace").checked) {
-
-        let A1Input = document.getElementById("charA1");
         let A2 = document.getElementById("charA2").value || "-";
-
-        let A1 = A1Input.value;
-
-        if (A1 === " ") {
-            A1Input.value = "space";
-            A1 = " ";
-        }
-
-        if (A1.toLowerCase() === "space") A1 = " ";
-
-        let joined = words.join(" ");
-        let regex = new RegExp(A1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
-        result = joined.replace(regex, A2);
-
+        result = words.join(A2);
     } else {
         result = words.join(" ");
     }
 
     document.getElementById("outputText").value = result;
 
-    let A2 = document.getElementById("charA2").value || "-";
-    let outputWords = result ? result.split(A2).filter(w => w !== "").length : 0;
-    let outputChars = result.length;
-
     document.getElementById("stats").innerHTML =
         "📥 Đầu vào: " + inputWords + " từ | " + inputChars + " ký tự" +
-        "<br>📤 Đầu ra: " + outputWords + " từ | " + outputChars + " ký tự";
+        "<br>📤 Đầu ra: " + words.length + " từ | " + result.length + " ký tự";
 }
 
-// Tắt radio khi bật custom
-document.getElementById("customToggle").addEventListener("change", function(){
-    let radios = document.querySelectorAll('input[name="limitOption"]');
-    let customInput = document.getElementById("customLimit");
+function lockButton(btn, originalText, successText) {
+    btn.classList.add("success");
+    btn.disabled = true;
+    btn.innerText = successText;
 
-    if(this.checked){
-        radios.forEach(r => r.checked = false);
-        customInput.disabled = false;
-    } else {
-        radios[1].checked = true; // mặc định 14
-        customInput.disabled = true;
-    }
-
-    convertText();
-});
-
-// Nếu chọn radio thì tắt custom
-document.querySelectorAll('input[name="limitOption"]').forEach(r=>{
-    r.addEventListener("change", function(){
-        document.getElementById("customToggle").checked = false;
-        document.getElementById("customLimit").disabled = true;
-        convertText();
-    });
-});
+    setTimeout(() => {
+        btn.classList.remove("success");
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }, 3000);
+}
 
 async function copyText() {
+    let btn = document.getElementById("copyBtn");
+    if (btn.disabled) return;
+
     let text = document.getElementById("outputText").value;
+
     try {
         await navigator.clipboard.writeText(text);
+        lockButton(btn, "Copy", "Đã copy");
     } catch (err) {
         console.log("Copy failed");
     }
 }
 
-
-
 async function pasteText() {
+    let btn = document.getElementById("pasteBtn");
+    if (btn.disabled) return;
+
     try {
         const text = await navigator.clipboard.readText();
         document.getElementById("inputText").value = text;
         convertText();
+        lockButton(btn, "📋 Paste", "Đã paste");
     } catch (err) {
         alert("Trình duyệt chưa cấp quyền clipboard.");
     }
@@ -278,5 +255,4 @@ document.querySelectorAll('input').forEach(el => {
 </script>
 
 </body>
-
 </html>
